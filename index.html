@@ -78,6 +78,25 @@
       }
     });
 
+    function screenToSVGCoords(svgElement, screenX, screenY, width, height) {
+      const pt = svgElement.createSVGPoint();
+      const ctm = svgElement.getScreenCTM();
+      
+      pt.x = screenX;
+      pt.y = screenY;
+      const svgPt = pt.matrixTransform(ctm.inverse());
+      
+      const scaleX = width / ctm.a;
+      const scaleY = height / ctm.d;
+      
+      return {
+        x: svgPt.x,
+        y: svgPt.y,
+        width: scaleX,
+        height: scaleY
+      };
+    }
+
     function loadSVG() {
       if (!selectedFile) return;
 
@@ -110,10 +129,26 @@
           child.tagName.toLowerCase() === 'g'
         );
 
+        const svgRect = svgElement.getBoundingClientRect();
+
         slides = allSlides
           .map((slide, i) => {
             const bbox = slide.getBBox();
-            return { element: slide, bbox, originalIndex: i };
+            const clientRect = slide.getBoundingClientRect();
+            const screenX = clientRect.left - svgRect.left;
+            const screenY = clientRect.top - svgRect.top;
+            const svgCoords = screenToSVGCoords(svgElement, clientRect.left, clientRect.top, clientRect.width, clientRect.height);
+            return { 
+              element: slide, 
+              bbox, 
+              screenX, 
+              screenY,
+              svgX: svgCoords.x,
+              svgY: svgCoords.y,
+              svgWidth: svgCoords.width,
+              svgHeight: svgCoords.height,
+              originalIndex: i 
+            };
           })
           .filter(slide => slide.bbox.width > 0 && slide.bbox.height > 0);
 
@@ -122,16 +157,16 @@
         const X_TOLERANCE = 10;
         
         slides.sort((a, b) => {
-          const xDiff = Math.abs(a.bbox.x - b.bbox.x);
+          const xDiff = Math.abs(a.screenX - b.screenX);
           if (xDiff < X_TOLERANCE) {
-            return a.bbox.y - b.bbox.y;
+            return a.screenY - b.screenY;
           }
-          return a.bbox.x - b.bbox.x;
+          return a.screenX - b.screenX;
         });
 
         console.log('Sorted slides:');
         slides.forEach((slide, i) => {
-          console.log(`  ${i}: id=${slide.element.getAttribute('id')}, x=${slide.bbox.x.toFixed(1)}, y=${slide.bbox.y.toFixed(1)}`);
+          console.log(`  ${i}: id=${slide.element.getAttribute('id')}, screenX=${slide.screenX.toFixed(1)}, screenY=${slide.screenY.toFixed(1)}, svgX=${slide.svgX.toFixed(1)}, svgY=${slide.svgY.toFixed(1)}`);
         });
 
         if (originalViewBox) {
@@ -139,10 +174,43 @@
           slides.unshift({
             element: null,
             bbox: { x: parts[0], y: parts[1], width: parts[2], height: parts[3] },
+            screenX: 0,
+            screenY: 0,
+            svgX: parts[0],
+            svgY: parts[1],
+            svgWidth: parts[2],
+            svgHeight: parts[3],
             originalIndex: -1,
             isOriginalView: true
           });
         }
+
+        slides.forEach((slide, i) => {
+          if (!slide.element) return;
+          
+          const bbox = slide.bbox;
+          const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+          rect.setAttribute('x', bbox.x);
+          rect.setAttribute('y', bbox.y);
+          rect.setAttribute('width', bbox.width);
+          rect.setAttribute('height', bbox.height);
+          rect.setAttribute('fill', 'none');
+          rect.setAttribute('stroke', 'red');
+          rect.setAttribute('stroke-width', '2');
+          rect.setAttribute('class', 'slide-border');
+          slide.element.appendChild(rect);
+
+          const slideId = slide.element.getAttribute('id');
+          const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+          text.setAttribute('x', bbox.x + 10);
+          text.setAttribute('y', bbox.y + 30);
+          text.setAttribute('fill', 'red');
+          text.setAttribute('font-size', '24');
+          text.setAttribute('font-weight', 'bold');
+          text.setAttribute('class', 'slide-number');
+          text.textContent = `${i} ${slideId}`;
+          slide.element.appendChild(text);
+        });
 
         const rootBBox = rootG.getBBox();
         console.log('Root layer bbox:', rootBBox);
@@ -169,26 +237,25 @@
       isZoomedOut = false;
 
       const slide = slides[currentSlideIndex];
-      const bbox = slide.bbox;
 
       const viewportWidth = container.clientWidth;
       const viewportHeight = container.clientHeight;
       const viewportAspect = viewportWidth / viewportHeight;
       
-      const slideAspect = bbox.width / bbox.height;
+      const slideAspect = slide.svgWidth / slide.svgHeight;
       
-      let viewBoxX = bbox.x;
-      let viewBoxY = bbox.y;
-      let viewBoxWidth = bbox.width;
-      let viewBoxHeight = bbox.height;
+      let viewBoxX = slide.svgX;
+      let viewBoxY = slide.svgY;
+      let viewBoxWidth = slide.svgWidth;
+      let viewBoxHeight = slide.svgHeight;
       
       if (viewportAspect > slideAspect) {
-        const newWidth = bbox.height * viewportAspect;
-        viewBoxX = bbox.x - (newWidth - bbox.width) / 2;
+        const newWidth = slide.svgHeight * viewportAspect;
+        viewBoxX = slide.svgX - (newWidth - slide.svgWidth) / 2;
         viewBoxWidth = newWidth;
       } else {
-        const newHeight = bbox.width / viewportAspect;
-        viewBoxY = bbox.y - (newHeight - bbox.height) / 2;
+        const newHeight = slide.svgWidth / viewportAspect;
+        viewBoxY = slide.svgY - (newHeight - slide.svgHeight) / 2;
         viewBoxHeight = newHeight;
       }
 
@@ -197,7 +264,7 @@
 
       updateCounter();
       console.log('Showing slide:', currentSlideIndex);
-      console.log('  Slide bbox:', bbox);
+      console.log('  SVG coords:', slide.svgX, slide.svgY, slide.svgWidth, slide.svgHeight);
       console.log('  ViewBox set to:', viewBoxStr);
       console.log('  Slide id:', slide.element ? slide.element.getAttribute('id') : 'ORIGINAL VIEW');
       console.log('  Is original view:', slide.isOriginalView || false);
