@@ -48,9 +48,11 @@
     let currentSlideIndex = 0;
     let slides = [];
     let svgElement = null;
+    let rootG = null;
     let selectedFile = null;
     let lastContent = null;
     let pollingInterval = null;
+    let isZoomedOut = false;
 
     const fileInput = document.getElementById('file-input');
     const container = document.getElementById('container');
@@ -83,17 +85,56 @@
           return;
         }
 
-        const rootG = svgElement.querySelector('g[inkscape\\:groupmode="layer"]');
+        const originalViewBox = svgElement.getAttribute('viewBox');
+        console.log('SVG original viewBox:', originalViewBox);
+        console.log('SVG width/height:', svgElement.getAttribute('width'), svgElement.getAttribute('height'));
+
+        rootG = svgElement.querySelector('g[inkscape\\:groupmode="layer"]');
         if (!rootG) {
           console.log('No root layer group found');
           return;
         }
 
-        slides = Array.from(rootG.children).filter(child => 
+        const allSlides = Array.from(rootG.children).filter(child => 
           child.tagName.toLowerCase() === 'g'
         );
 
-        console.log('Found slides:', slides.length);
+        slides = allSlides
+          .map((slide, i) => {
+            const bbox = slide.getBBox();
+            return { element: slide, bbox, originalIndex: i };
+          })
+          .filter(slide => slide.bbox.width > 0 && slide.bbox.height > 0);
+
+        console.log('Found non-empty slides:', slides.length, 'out of', allSlides.length);
+
+        const X_TOLERANCE = 10;
+        
+        slides.sort((a, b) => {
+          const xDiff = Math.abs(a.bbox.x - b.bbox.x);
+          if (xDiff < X_TOLERANCE) {
+            return a.bbox.y - b.bbox.y;
+          }
+          return a.bbox.x - b.bbox.x;
+        });
+
+        console.log('Sorted slides:');
+        slides.forEach((slide, i) => {
+          console.log(`  ${i}: id=${slide.element.getAttribute('id')}, x=${slide.bbox.x.toFixed(1)}, y=${slide.bbox.y.toFixed(1)}`);
+        });
+
+        if (originalViewBox) {
+          const parts = originalViewBox.split(/\s+/).map(Number);
+          slides.unshift({
+            element: null,
+            bbox: { x: parts[0], y: parts[1], width: parts[2], height: parts[3] },
+            originalIndex: -1,
+            isOriginalView: true
+          });
+        }
+
+        const rootBBox = rootG.getBBox();
+        console.log('Root layer bbox:', rootBBox);
 
         if (currentSlideIndex >= slides.length) {
           currentSlideIndex = slides.length - 1;
@@ -114,33 +155,84 @@
       if (index < 0 || index >= slides.length) return;
 
       currentSlideIndex = index;
+      isZoomedOut = false;
 
       const slide = slides[currentSlideIndex];
-      const bbox = slide.getBBox();
+      const bbox = slide.bbox;
 
-      svgElement.setAttribute('viewBox', 
-        `${bbox.x} ${bbox.y} ${bbox.width} ${bbox.height}`
-      );
+      const viewportWidth = container.clientWidth;
+      const viewportHeight = container.clientHeight;
+      const viewportAspect = viewportWidth / viewportHeight;
+      
+      const slideAspect = bbox.width / bbox.height;
+      
+      let viewBoxX = bbox.x;
+      let viewBoxY = bbox.y;
+      let viewBoxWidth = bbox.width;
+      let viewBoxHeight = bbox.height;
+      
+      if (viewportAspect > slideAspect) {
+        const newWidth = bbox.height * viewportAspect;
+        viewBoxX = bbox.x - (newWidth - bbox.width) / 2;
+        viewBoxWidth = newWidth;
+      } else {
+        const newHeight = bbox.width / viewportAspect;
+        viewBoxY = bbox.y - (newHeight - bbox.height) / 2;
+        viewBoxHeight = newHeight;
+      }
+
+      const viewBoxStr = `${viewBoxX} ${viewBoxY} ${viewBoxWidth} ${viewBoxHeight}`;
+      svgElement.setAttribute('viewBox', viewBoxStr);
 
       updateCounter();
-      console.log('Showing slide:', currentSlideIndex, 'bbox:', bbox);
+      console.log('Showing slide:', currentSlideIndex);
+      console.log('  Slide bbox:', bbox);
+      console.log('  ViewBox set to:', viewBoxStr);
+      console.log('  Slide id:', slide.element ? slide.element.getAttribute('id') : 'ORIGINAL VIEW');
+      console.log('  Is original view:', slide.isOriginalView || false);
+    }
+
+    function toggleZoom() {
+      if (isZoomedOut) {
+        showSlide(currentSlideIndex);
+      } else {
+        zoomOut();
+      }
+    }
+
+    function zoomOut() {
+      if (!svgElement || !rootG) return;
+
+      const bbox = rootG.getBBox();
+      const viewBoxStr = `${bbox.x} ${bbox.y} ${bbox.width} ${bbox.height}`;
+      svgElement.setAttribute('viewBox', viewBoxStr);
+
+      isZoomedOut = true;
+      updateCounter();
+      console.log('Zoomed out to full canvas');
+      console.log('  Root bbox:', bbox);
+      console.log('  ViewBox set to:', viewBoxStr);
     }
 
     function updateCounter() {
-      slideCounter.textContent = 
-        `${currentSlideIndex + 1} / ${slides.length}`;
+      if (isZoomedOut) {
+        slideCounter.textContent = 'Full Canvas';
+      } else {
+        slideCounter.textContent = 
+          `${currentSlideIndex + 1} / ${slides.length}`;
+      }
     }
 
     function nextSlide() {
-      if (currentSlideIndex < slides.length - 1) {
-        showSlide(currentSlideIndex + 1);
-      }
+      if (slides.length === 0) return;
+      const nextIndex = (currentSlideIndex + 1) % slides.length;
+      showSlide(nextIndex);
     }
 
     function prevSlide() {
-      if (currentSlideIndex > 0) {
-        showSlide(currentSlideIndex - 1);
-      }
+      if (slides.length === 0) return;
+      const prevIndex = (currentSlideIndex - 1 + slides.length) % slides.length;
+      showSlide(prevIndex);
     }
 
     function startPolling() {
@@ -166,6 +258,9 @@
       } else if (e.key === 'ArrowLeft') {
         e.preventDefault();
         prevSlide();
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        toggleZoom();
       }
     });
   </script>
