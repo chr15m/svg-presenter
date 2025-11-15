@@ -37,6 +37,9 @@
       border-radius: 3px;
       font-size: 14px;
     }
+    #container:fullscreen {
+      background: #000;
+    }
   </style>
 </head>
 <body>
@@ -64,6 +67,14 @@
         currentSlideIndex = 0;
         loadSVG();
         startPolling();
+      }
+    });
+
+    container.addEventListener('click', () => {
+      if (!document.fullscreenElement) {
+        container.requestFullscreen().catch(err => {
+          console.log('Error attempting to enable fullscreen:', err);
+        });
       }
     });
 
