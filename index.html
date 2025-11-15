@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>SVG Presenter</title>
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+      background: #000;
+      font-family: sans-serif;
+    }
+    #container {
+      width: 100vw;
+      height: 100vh;
+    }
+    #svg-display {
+      width: 100%;
+      height: 100%;
+    }
+    #file-input {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      z-index: 100;
+      background: white;
+      padding: 5px;
+      border-radius: 3px;
+    }
+    #slide-counter {
+      position: absolute;
+      bottom: 10px;
+      right: 10px;
+      z-index: 100;
+      background: rgba(255, 255, 255, 0.8);
+      padding: 5px 10px;
+      border-radius: 3px;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+  <input type="file" id="file-input" accept=".svg">
+  <div id="slide-counter"></div>
+  <div id="container"></div>
+  
+  <script>
+    let currentSlideIndex = 0;
+    let slides = [];
+    let svgElement = null;
+    let selectedFile = null;
+    let lastContent = null;
+    let pollingInterval = null;
+
+    const fileInput = document.getElementById('file-input');
+    const container = document.getElementById('container');
+    const slideCounter = document.getElementById('slide-counter');
+
+    fileInput.addEventListener('change', (e) => {
+      selectedFile = e.target.files[0];
+      if (selectedFile) {
+        currentSlideIndex = 0;
+        loadSVG();
+        startPolling();
+      }
+    });
+
+    function loadSVG() {
+      if (!selectedFile) return;
+
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const content = e.target.result;
+        
+        if (content === lastContent) return;
+        lastContent = content;
+
+        container.innerHTML = content;
+        svgElement = container.querySelector('svg');
+        
+        if (!svgElement) {
+          console.log('No SVG element found');
+          return;
+        }
+
+        const rootG = svgElement.querySelector('g[inkscape\\:groupmode="layer"]');
+        if (!rootG) {
+          console.log('No root layer group found');
+          return;
+        }
+
+        slides = Array.from(rootG.children).filter(child => 
+          child.tagName.toLowerCase() === 'g'
+        );
+
+        console.log('Found slides:', slides.length);
+
+        if (currentSlideIndex >= slides.length) {
+          currentSlideIndex = slides.length - 1;
+        }
+        if (currentSlideIndex < 0) {
+          currentSlideIndex = 0;
+        }
+
+        if (slides.length > 0) {
+          showSlide(currentSlideIndex);
+        }
+      };
+      reader.readAsText(selectedFile);
+    }
+
+    function showSlide(index) {
+      if (!svgElement || slides.length === 0) return;
+      if (index < 0 || index >= slides.length) return;
+
+      currentSlideIndex = index;
+
+      const slide = slides[currentSlideIndex];
+      const bbox = slide.getBBox();
+
+      svgElement.setAttribute('viewBox', 
+        `${bbox.x} ${bbox.y} ${bbox.width} ${bbox.height}`
+      );
+
+      updateCounter();
+      console.log('Showing slide:', currentSlideIndex, 'bbox:', bbox);
+    }
+
+    function updateCounter() {
+      slideCounter.textContent = 
+        `${currentSlideIndex + 1} / ${slides.length}`;
+    }
+
+    function nextSlide() {
+      if (currentSlideIndex < slides.length - 1) {
+        showSlide(currentSlideIndex + 1);
+      }
+    }
+
+    function prevSlide() {
+      if (currentSlideIndex > 0) {
+        showSlide(currentSlideIndex - 1);
+      }
+    }
+
+    function startPolling() {
+      if (pollingInterval) {
+        clearInterval(pollingInterval);
+      }
+
+      pollingInterval = setInterval(() => {
+        if (!selectedFile) return;
+        
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          loadSVG();
+        };
+        reader.readAsText(selectedFile);
+      }, 250);
+    }
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowRight') {
+        e.preventDefault();
+        nextSlide();
+      } else if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        prevSlide();
+      }
+    });
+  </script>
+</body>
+</html>
