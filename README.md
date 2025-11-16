@@ -1,7 +1,19 @@
-SVG Presenter is a hacky little tool for using an SVG as a presentation.
+# SVG Presenter
 
-- Select your SVG.
-- The tool finds the top-level <g> elements.
-- The tool positions the first one full screen.
-- Pressing right/left arrow keys cycles through each top level <g> element making it full screen.
-- If the file is changed it's reloaded and the current top level <g> element being displayed remains in focus.
+A simple tool for presenting slides from an Inkscape SVG file.
+
+## Usage
+
+- Open `index.html` in a browser
+- Select your SVG file
+- Navigate with arrow keys: ← → to move between slides, ↑ to toggle zoom
+- Click anywhere to enter fullscreen mode
+- In zoomed-out view, click on a slide to jump to it
+
+## How it works
+
+- Finds all top-level `<g>` elements within the root Inkscape layer
+- Filters out empty slides (zero width/height)
+- Sorts slides by column (left to right), then top to bottom within each column
+- Displays each slide fullscreen with aspect ratio preserved
+- Auto-reloads the file every 250ms to show live updates from Inkscape
