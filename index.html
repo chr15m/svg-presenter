@@ -40,12 +40,32 @@
     #container:fullscreen {
       background: #000;
     }
+    #instructions {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      color: #fff;
+      text-align: center;
+      font-size: 18px;
+      line-height: 1.6;
+    }
+    #instructions h2 {
+      margin-top: 0;
+      font-size: 24px;
+    }
   </style>
 </head>
 <body>
   <input type="file" id="file-input" accept=".svg">
   <div id="slide-counter"></div>
-  <div id="container"></div>
+  <div id="container">
+    <div id="instructions">
+      <h2>SVG Presenter</h2>
+      <p>Select an SVG file to begin</p>
+      <p>← → Navigate slides | ↑ Toggle zoom | Click to fullscreen</p>
+    </div>
+  </div>
   
   <script>
     let currentSlideIndex = 0;
@@ -60,6 +80,7 @@
     const fileInput = document.getElementById('file-input');
     const container = document.getElementById('container');
     const slideCounter = document.getElementById('slide-counter');
+    const instructions = document.getElementById('instructions');
 
     fileInput.addEventListener('change', (e) => {
       selectedFile = e.target.files[0];
@@ -106,6 +127,10 @@
         
         if (content === lastContent) return;
         lastContent = content;
+
+        if (instructions) {
+          instructions.style.display = 'none';
+        }
 
         container.innerHTML = content;
         svgElement = container.querySelector('svg');
