@@ -185,32 +185,32 @@
           });
         }
 
-        slides.forEach((slide, i) => {
-          if (!slide.element) return;
-          
-          const bbox = slide.bbox;
-          const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-          rect.setAttribute('x', bbox.x);
-          rect.setAttribute('y', bbox.y);
-          rect.setAttribute('width', bbox.width);
-          rect.setAttribute('height', bbox.height);
-          rect.setAttribute('fill', 'none');
-          rect.setAttribute('stroke', 'red');
-          rect.setAttribute('stroke-width', '2');
-          rect.setAttribute('class', 'slide-border');
-          slide.element.appendChild(rect);
-
-          const slideId = slide.element.getAttribute('id');
-          const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-          text.setAttribute('x', bbox.x + 10);
-          text.setAttribute('y', bbox.y + 30);
-          text.setAttribute('fill', 'red');
-          text.setAttribute('font-size', '24');
-          text.setAttribute('font-weight', 'bold');
-          text.setAttribute('class', 'slide-number');
-          text.textContent = `${i} ${slideId}`;
-          slide.element.appendChild(text);
-        });
+        // slides.forEach((slide, i) => {
+        //   if (!slide.element) return;
+        //   
+        //   const bbox = slide.bbox;
+        //   const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+        //   rect.setAttribute('x', bbox.x);
+        //   rect.setAttribute('y', bbox.y);
+        //   rect.setAttribute('width', bbox.width);
+        //   rect.setAttribute('height', bbox.height);
+        //   rect.setAttribute('fill', 'none');
+        //   rect.setAttribute('stroke', 'red');
+        //   rect.setAttribute('stroke-width', '2');
+        //   rect.setAttribute('class', 'slide-border');
+        //   slide.element.appendChild(rect);
+        //
+        //   const slideId = slide.element.getAttribute('id');
+        //   const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        //   text.setAttribute('x', bbox.x + 10);
+        //   text.setAttribute('y', bbox.y + 30);
+        //   text.setAttribute('fill', 'red');
+        //   text.setAttribute('font-size', '24');
+        //   text.setAttribute('font-weight', 'bold');
+        //   text.setAttribute('class', 'slide-number');
+        //   text.textContent = `${i} ${slideId}`;
+        //   slide.element.appendChild(text);
+        // });
 
         const rootBBox = rootG.getBBox();
         console.log('Root layer bbox:', rootBBox);
