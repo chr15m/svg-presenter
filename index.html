@@ -92,7 +92,11 @@
     });
 
     container.addEventListener('click', () => {
-      if (!document.fullscreenElement) {
+      if (document.fullscreenElement) {
+        document.exitFullscreen().catch(err => {
+          console.log('Error attempting to exit fullscreen:', err);
+        });
+      } else {
         container.requestFullscreen().catch(err => {
           console.log('Error attempting to enable fullscreen:', err);
         });
