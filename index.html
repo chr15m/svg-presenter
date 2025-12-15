@@ -63,7 +63,7 @@
     <div id="instructions">
       <h2>SVG Presenter</h2>
       <p>Select an SVG file to begin</p>
-      <p>← → Navigate slides | ↑ Toggle zoom | Click to fullscreen</p>
+      <p>← → Navigate slides | ↑ Toggle zoom | R Reload | Click to fullscreen</p>
     </div>
   </div>
   
@@ -365,6 +365,11 @@
       } else if (e.key === 'ArrowUp') {
         e.preventDefault();
         toggleZoom();
+      } else if (e.key === 'r') {
+        e.preventDefault();
+        lastContent = null;
+        loadSVG();
+        console.log('Manual reload triggered');
       }
     });
   </script>
